@@ -1,0 +1,67 @@
+[tool.poetry]
+name = "docdantic"
+version = "0.0.0"
+description = "A markdown plugin for generating docs from Pydantic models"
+authors = ["Tim Pogue <tim@emergentmethods.ai>"]
+readme = "README.md"
+packages = [
+    { include = "docdantic" },
+]
+license = "MIT"
+repository = "https://gitlab.com/emergentmethods/docdantic"
+
+
+[tool.poetry.dependencies]
+python = "^3.11"
+markdown = "3.3.7"
+tabulate = "^0.9.0"
+pydantic = "2.0.2"
+
+
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.2.0"
+flake8 = "^6.0.0"
+pytest = "^7.3.1"
+pytest-asyncio = "^0.21.0"
+mkdocs = "^1.4.3"
+mkdocs-material = "^9.1.15"
+coverage = "^7.2.7"
+python-semantic-release = "^7.34.3"
+pre-commit = "^3.3.2"
+types-markdown = "^3.4.2.9"
+types-tabulate = "^0.9.0.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.mypy]
+plugins = "pydantic.mypy"
+ignore_missing_imports = "True"
+
+[tool.pytest.ini_options]
+addopts = "-s -p no:warnings"
+testpaths = [
+    "tests",
+]
+asyncio_mode = "auto"
+log_cli = "True"
+log_auto_indent = "False"
+
+[tool.coverage.run]
+source = ["docdantic"]
+
+[tool.coverage.report]
+ignore_errors = "true"
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
+[tool.semantic_release]
+version_toml = "pyproject.toml:tool.poetry.version"
+commit_author = "Tim Pogue <tim@emergentmethod.ai>"
+commit_subject = "chore(release): Release {version}"
+commit_message = ""
+upload_to_repository = false
+upload_to_pypi = false
+tag_format = "{version}"
