@@ -201,18 +201,6 @@ get-version:
       dotenv: release.env
 
 
-build-docs:
-  <<: *use_cached_venv
-  <<: *only_tag
-  stage: build
-  script:
-    - make docs
-  artifacts:
-    paths:
-      - site/
-    expire_in: 1 week
-
-
 build-wheel:
   <<: *use_cached_venv
   <<: *only_tag
