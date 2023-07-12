@@ -140,109 +140,108 @@ lint-code:
     - gitlab-org-docker
   script:
       # Ensure the code is formatted correctly
-    - echo $PYPI_TOKEN
     - make lint
 
 
-# unit-tests:
-#   <<: *use_cached_venv
-#   <<: *no_tag
-#   stage: test
-#   tags:
-#     - gitlab-org-docker
-#   script:
-#     - make test
-#   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
-#   artifacts:
-#     reports:
-#       coverage_report:
-#         coverage_format: cobertura
-#         path: coverage.xml
-#       junit: report.xml
-#     paths:
-#       - coverage-report/
+unit-tests:
+  <<: *use_cached_venv
+  <<: *no_tag
+  stage: test
+  tags:
+    - gitlab-org-docker
+  script:
+    - make test
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+      junit: report.xml
+    paths:
+      - coverage-report/
 
 
-# bump-version:
-#   <<: *use_cached_venv
-#   <<: *only_protected
-#   variables:
-#     REPO_URL: "https://${GIT_USER}:${GIT_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
-#   stage: bump
-#   tags:
-#     - gitlab-org-docker
-#   before_script:
-#       # Install semantic-release, not sure why it's not in the venv already
-#     - pip install python-semantic-release
-#       # Set git info
-#     - git config --global user.email "$GIT_EMAIL"
-#     - git config --global user.name "$GIT_USER"
-#       # NOTE: Must be set to CLONE strategy in gitlab CI otherwise there will be
-#       # excess commits and tags from a dirty cache
-#     - git checkout $CI_COMMIT_BRANCH
-#     - git pull $REPO_URL $CI_COMMIT_BRANCH
-#       # Explicitly checkout branch since gitlab CI detaches
-#   script:
-#     # Bump the version with prerelease tag
-#     - export DID_BUMP=$(semantic-release version 2>&1)
-#     # Push new tag to trigger release workflow if bumped
-#     - echo $DID_BUMP
-#     - |
-#       if [[ $DID_BUMP == *"No release will be made."* ]]; then
-#         echo "Semantic release did not bump the version"
-#       else
-#         echo "Semantic release bumped the version"
-#         git push $REPO_URL $CI_COMMIT_BRANCH --tags
-#       fi
+bump-version:
+  <<: *use_cached_venv
+  <<: *only_protected
+  variables:
+    REPO_URL: "https://${GIT_USER}:${GIT_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+  stage: bump
+  tags:
+    - gitlab-org-docker
+  before_script:
+      # Install semantic-release, not sure why it's not in the venv already
+    - pip install python-semantic-release
+      # Set git info
+    - git config --global user.email "$GIT_EMAIL"
+    - git config --global user.name "$GIT_USER"
+      # NOTE: Must be set to CLONE strategy in gitlab CI otherwise there will be
+      # excess commits and tags from a dirty cache
+    - git checkout $CI_COMMIT_BRANCH
+    - git pull $REPO_URL $CI_COMMIT_BRANCH
+      # Explicitly checkout branch since gitlab CI detaches
+  script:
+    # Bump the version with prerelease tag
+    - export DID_BUMP=$(semantic-release version 2>&1)
+    # Push new tag to trigger release workflow if bumped
+    - echo $DID_BUMP
+    - |
+      if [[ $DID_BUMP == *"No release will be made."* ]]; then
+        echo "Semantic release did not bump the version"
+      else
+        echo "Semantic release bumped the version"
+        git push $REPO_URL $CI_COMMIT_BRANCH --tags
+      fi
 
 
-# get-version:
-#   <<: *use_cached_venv
-#   <<: *only_tag
-#   stage: version
-#   tags:
-#     - gitlab-org-docker
-#   script:
-#     # Create release.env
-#     - echo "VERSION=$(poetry version --short)" >> release.env
-#     # Ensure the file is formatted correctly
-#     - cat release.env
-#   artifacts:
-#     reports:
-#       dotenv: release.env
+get-version:
+  <<: *use_cached_venv
+  <<: *only_tag
+  stage: version
+  tags:
+    - gitlab-org-docker
+  script:
+    # Create release.env
+    - echo "VERSION=$(poetry version --short)" >> release.env
+    # Ensure the file is formatted correctly
+    - cat release.env
+  artifacts:
+    reports:
+      dotenv: release.env
 
 
-# build-wheel:
-#   <<: *use_cached_venv
-#   <<: *only_tag
-#   stage: build
-#   tags:
-#     - gitlab-org-docker
-#   script:
-#     # Build the wheel
-#     - poetry build --format wheel
-#   artifacts:
-#     name: dist
-#     paths:
-#       - dist/
+build-wheel:
+  <<: *use_cached_venv
+  <<: *only_tag
+  stage: build
+  tags:
+    - gitlab-org-docker
+  script:
+    # Build the wheel
+    - poetry build --format wheel
+  artifacts:
+    name: dist
+    paths:
+      - dist/
 
 
-# make-release:
-#   <<: *use_cached_venv
-#   <<: *only_tag
-#   stage: release
-#   tags:
-#     - gitlab-org-docker
-#   needs:
-#     - job: get-version
-#       artifacts: true
-#   image: registry.gitlab.com/gitlab-org/release-cli:latest
-#   script:
-#     - echo "Building release $VERSION"
-#   release:
-#     name: Release $VERSION
-#     tag_name: $VERSION
-#     description: $CHANGELOG
+make-release:
+  <<: *use_cached_venv
+  <<: *only_tag
+  stage: release
+  tags:
+    - gitlab-org-docker
+  needs:
+    - job: get-version
+      artifacts: true
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  script:
+    - echo "Building release $VERSION"
+  release:
+    name: Release $VERSION
+    tag_name: $VERSION
+    description: $CHANGELOG
 
 
 publish-wheel:
