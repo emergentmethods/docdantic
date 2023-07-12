@@ -1,5 +1,8 @@
 # Docdantic
 
+![Gitlab code coverage (specific job)](https://img.shields.io/gitlab/pipeline-coverage/emergentmethods/docdantic?branch=main&job_name=unit-tests&style=flat-square)
+![GitLab Release (latest by SemVer)](https://img.shields.io/gitlab/v/release/emergentmethods/docdantic?style=flat-square)
+![GitLab](https://img.shields.io/gitlab/license/emergentmethods/docdantic?style=flat-square)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/docdantic?style=flat-square)
 
 Docdantic is a Python library that enables the automatic generation of Markdown documentation from Pydantic v2 models. It works as an extension of the Markdown package, extracting model details and creating neat tables with model fields and their properties.
