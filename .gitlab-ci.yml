@@ -112,6 +112,8 @@ lint-commit:
   <<: *use_cached_venv
   <<: *no_tag
   stage: lint
+  tags:
+    - gitlab-org-docker
   script:
     - |
       # Get the commit message of the last commit
@@ -134,6 +136,8 @@ lint-code:
   <<: *use_cached_venv
   <<: *no_tag
   stage: lint
+  tags:
+    - gitlab-org-docker
   script:
       # Ensure the code is formatted correctly
     - make lint
@@ -143,6 +147,8 @@ unit-tests:
   <<: *use_cached_venv
   <<: *no_tag
   stage: test
+  tags:
+    - gitlab-org-docker
   script:
     - make test
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
@@ -162,6 +168,8 @@ bump-version:
   variables:
     REPO_URL: "https://${GIT_USER}:${GIT_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
   stage: bump
+  tags:
+    - gitlab-org-docker
   before_script:
       # Install semantic-release, not sure why it's not in the venv already
     - pip install python-semantic-release
@@ -191,6 +199,8 @@ get-version:
   <<: *use_cached_venv
   <<: *only_tag
   stage: version
+  tags:
+    - gitlab-org-docker
   script:
     # Create release.env
     - echo "VERSION=$(poetry version --short)" >> release.env
@@ -205,6 +215,8 @@ build-wheel:
   <<: *use_cached_venv
   <<: *only_tag
   stage: build
+  tags:
+    - gitlab-org-docker
   script:
     # Build the wheel
     - poetry build --format wheel
@@ -218,6 +230,8 @@ make-release:
   <<: *use_cached_venv
   <<: *only_tag
   stage: release
+  tags:
+    - gitlab-org-docker
   needs:
     - job: get-version
       artifacts: true
@@ -234,6 +248,8 @@ publish-wheel:
   <<: *use_cached_venv
   <<: *only_tag
   stage: release
+  tags:
+    - gitlab-org-docker
   script: |
       # Publish the built wheel to the registry
       poetry config pypi-token.pypi $PYPI_TOKEN
