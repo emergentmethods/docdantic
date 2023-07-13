@@ -1,16 +1,26 @@
 import re
 import tabulate
-import json
 import importlib
+import json
 from importlib.metadata import version
 from collections import namedtuple
-from pydantic import BaseModel
-from pydantic.fields import FieldInfo
-from pydantic_core import PydanticUndefined
 from markdown import Markdown
 from markdown.extensions import Extension
 from markdown.preprocessors import Preprocessor
-from typing import Type, Any
+from pydantic.version import VERSION as PYDANTIC_VERSION
+from pydantic import BaseModel
+from typing import Any, Type
+
+if PYDANTIC_VERSION.startswith("1."):
+    from pydantic.fields import Undefined as PydanticUndefined  # type: ignore
+    _model_dump = lambda model, *args, **kwargs: model.dict(*args, **kwargs)
+    _get_field_annotation = lambda field: field.type_
+    _get_required = lambda field: field.required
+else:
+    from pydantic_core import PydanticUndefined  # type: ignore
+    _model_dump = lambda model, *args, **kwargs: model.model_dump(*args, **kwargs)
+    _get_field_annotation = lambda field: field.annotation
+    _get_required = lambda field: field.is_required()
 
 __version__ = version(__package__)
 ModelFieldInfo = namedtuple("ModelFieldInfo", "name type required default")
@@ -30,35 +40,6 @@ def is_pydantic_model(obj: Type | None) -> bool:
     if isinstance(obj, type) and issubclass(obj, BaseModel):
         return True
     return False
-
-
-def get_default_string(field: FieldInfo):
-    """
-    Get a string representation of the default value of a field.
-
-    :param field: Field to process.
-    :return: String representation of the default value.
-    """
-    if field.default == PydanticUndefined:
-        return "..."
-    elif field.default is not None and is_pydantic_model(field.default):
-        return str(field.default.model_dump())
-    elif field.default is not None:
-        return str(field.default)
-    else:
-        return ""
-
-def get_annotation_string(field: FieldInfo):
-    """
-    Get a string representation of the field's type annotation.
-
-    :param field: Field to process.
-    :return: String representation of the field's annotation.
-    """
-    if field.annotation is None:
-        return "None"
-
-    return str(field.annotation.__name__)
 
 
 def submodel_link(sub_model: str):
@@ -103,42 +84,6 @@ def import_class(path: str):
     return getattr(module, class_name, None)
 
 
-def get_field_info(model: Any, config: dict = {}, models: dict | None = None):
-    """
-    Get information about the fields of a model.
-
-    :param model: The model to inspect.
-    :param config: Configuration for the inspection.
-    :param models: Already inspected models to avoid circular references.
-    :return: A dictionary with the model's field information.
-    """
-    if models is None:
-        models = {}
-
-    fields: list[ModelFieldInfo] = []
-    model_name = model.__name__
-    models[model_name] = fields
-
-    for name, field in model.__fields__.items():
-        if model_name in config.get("exclude", {}) and name in config["exclude"][model_name]:
-            # Skip fields that are explicitly excluded
-            continue
-
-        annotation = get_annotation_string(field)
-        default = get_default_string(field)
-        required = str(field.is_required())
-
-        if is_pydantic_model(field.annotation):
-            annotation = submodel_link(annotation)
-            get_field_info(field.annotation, config, models)
-
-        fields.append(
-            ModelFieldInfo(highlight_name(name), annotation, required, default)
-        )
-
-    return models
-
-
 def extract_configuration(index, lines):
     """
     Extract configuration from the lines.
@@ -171,6 +116,72 @@ def extract_configuration(index, lines):
             continue  # If the current JSON string is not valid, ignore it and continue
 
     return config, index
+
+
+def get_default_string(default: Any):
+    """
+    Get a string representation of the default value of a field.
+
+    :param field: Field to process.
+    :return: String representation of the default value.
+    """
+    if default == PydanticUndefined:
+        return "..."
+    elif default is not None and is_pydantic_model(default):
+        return str(_model_dump(default))
+    elif default is not None:
+        return str(default)
+    else:
+        return ""
+
+def get_annotation_string(annotation: Any):
+    """
+    Get a string representation of the annotation of a field.
+
+    :param annotation: Annotation to process.
+    :return: String representation of the annotation.
+    """
+    if annotation is None:
+        return "None"
+
+    return str(annotation.__name__)
+
+
+def get_field_info(model: Any, config: dict = {}, models: dict | None = None):
+    """
+    Get information about the fields of a model.
+
+    :param model: The model to inspect.
+    :param config: Configuration for the inspection.
+    :param models: Already inspected models to avoid circular references.
+    :return: A dictionary with the model's field information.
+    """
+    if models is None:
+        models = {}
+
+    fields: list[ModelFieldInfo] = []
+    model_name = model.__name__
+    models[model_name] = fields
+
+    for name, field in model.__fields__.items():
+        if model_name in config.get("exclude", {}) and name in config["exclude"][model_name]:
+            # Skip fields that are explicitly excluded
+            continue
+
+        annotation = _get_field_annotation(field)
+        annotation_str = get_annotation_string(annotation)
+        default = get_default_string(field.default)
+        required = str(_get_required(field))
+
+        if is_pydantic_model(annotation):
+            annotation_str = submodel_link(annotation_str)
+            get_field_info(annotation, config, models)
+
+        fields.append(
+            ModelFieldInfo(highlight_name(name), annotation_str, required, default)
+        )
+
+    return models
 
 
 def render_table(model_path: str, config: dict) -> str:

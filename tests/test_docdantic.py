@@ -1,6 +1,8 @@
-import pytest
+from markdown import Markdown
+from pydantic import BaseModel, Field
 
 from docdantic import (
+    PydanticUndefined,
     is_pydantic_model,
     get_default_string,
     get_annotation_string,
@@ -13,10 +15,6 @@ from docdantic import (
     process_line,
     DocdanticPreprocessor
 )
-from markdown import Markdown
-from pydantic import BaseModel, Field
-from pydantic.fields import FieldInfo
-from pydantic_core import PydanticUndefined
 
 # Test the is_pydantic_model function
 def test_is_pydantic_model() -> None:
@@ -30,8 +28,8 @@ def test_is_pydantic_model() -> None:
 
 # Test the get_default_string function
 def test_get_default_string() -> None:
-    field_undefined = FieldInfo(default=PydanticUndefined)
-    field_with_default = FieldInfo(default='test_default')
+    field_undefined = PydanticUndefined
+    field_with_default = 'test_default'
     
     assert get_default_string(field_undefined) == "..."
     assert get_default_string(field_with_default) == 'test_default'
@@ -39,11 +37,9 @@ def test_get_default_string() -> None:
 
 # Test the get_annotation_string function
 def test_get_annotation_string() -> None:
-    field_none_annotation = FieldInfo(default='test_default', annotation=None)
-    field_with_annotation = FieldInfo(default='test_default', annotation=int)
-    
-    assert get_annotation_string(field_none_annotation) == "None"
-    assert get_annotation_string(field_with_annotation) == 'int'
+    assert get_annotation_string(None) == "None"
+    assert get_annotation_string(int) == 'int'
+    assert get_annotation_string(str) == 'str'
 
 
 # Test the import_class function

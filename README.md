@@ -5,13 +5,14 @@
 ![GitLab](https://img.shields.io/gitlab/license/emergentmethods/docdantic?style=flat-square)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/docdantic?style=flat-square)
 
-Docdantic is a Python library that enables the automatic generation of Markdown documentation from Pydantic v2 models. It works as an extension of the Markdown package, extracting model details and creating neat tables with model fields and their properties.
+Docdantic is a Python library that enables the automatic generation of Markdown documentation from Pydantic models. It works as an extension of the Markdown package, extracting model details and creating neat tables with model fields and their properties.
 
 
 ## Features
 
-* Automatically generate tables of Pydantic v2 model fields with their details (name, type, required, default).
-* Supports nested Pydantic v2 models.
+* Supports both Pydantic V1 and V2 models.
+* Automatically generate tables of Pydantic model fields with their details (name, type, required, default).
+* Supports nested Pydantic models.
 * Configurable exclusion of specific fields from the documentation.
 
 
