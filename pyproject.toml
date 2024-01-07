@@ -15,7 +15,7 @@ repository = "https://gitlab.com/emergentmethods/docdantic"
 python = "^3.11"
 markdown = "^3.3.7"
 tabulate = "^0.9.0"
-pydantic = "^1.8.2"
+pydantic = "^2.5.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -24,7 +24,6 @@ flake8 = "^6.0.0"
 pytest = "^7.3.1"
 pytest-asyncio = "^0.21.0"
 coverage = "^7.2.7"
-python-semantic-release = "^7.34.3"
 pre-commit = "^3.3.2"
 types-markdown = "^3.4.2.9"
 types-tabulate = "^0.9.0.2"
@@ -55,11 +54,10 @@ ignore_errors = "true"
 [tool.coverage.xml]
 output = "coverage.xml"
 
-[tool.semantic_release]
-version_toml = "pyproject.toml:tool.poetry.version"
-commit_author = "Tim Pogue <tim@emergentmethod.ai>"
-commit_subject = "chore(release): Release {version}"
-commit_message = ""
-upload_to_repository = false
-upload_to_pypi = false
-tag_format = "{version}"
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "$version"
+version_scheme = "semver"
+version_provider = "poetry"
+update_changelog_on_bump = true
+bump_message = "chore(release): Release $new_version"

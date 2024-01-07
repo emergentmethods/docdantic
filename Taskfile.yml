@@ -1,0 +1,22 @@
+version: '3'
+
+
+vars:
+  PACKAGE_SRC_DIR: docdantic
+
+
+tasks:
+  # ---------------------
+
+  # Linting
+  lint:
+    cmds:
+      - flake8 {{.PACKAGE_SRC_DIR}}
+
+  # Run unit tests
+  unit-tests:
+    cmds:
+      - coverage run -m pytest --junitxml=report.xml
+      - coverage report
+      - coverage xml
+      - coverage html -d coverage-report
