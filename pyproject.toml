@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "docdantic"
-version = "0.2.0"
+version = "0.3.0"
 description = "A markdown plugin for generating docs from Pydantic models"
 authors = ["Tim Pogue <tim@emergentmethods.ai>"]
 readme = "README.md"
