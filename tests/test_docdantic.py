@@ -1,3 +1,5 @@
+from typing import Union
+from types import UnionType
 from markdown import Markdown
 from pydantic import BaseModel, Field
 
@@ -40,6 +42,11 @@ def test_get_annotation_string() -> None:
     assert get_annotation_string(None) == "None"
     assert get_annotation_string(int) == 'int'
     assert get_annotation_string(str) == 'str'
+    assert get_annotation_string(list) == 'list'
+    assert get_annotation_string(dict) == 'dict'
+    assert get_annotation_string(bool) == 'bool'
+    assert get_annotation_string(float) == 'float'
+    assert get_annotation_string(Union[float, int]) == 'Union[float, int]'
 
 
 # Test the import_class function

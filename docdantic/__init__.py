@@ -2,6 +2,8 @@ import re
 import tabulate
 import importlib
 import json
+from enum import Enum
+from types import UnionType, NoneType
 from importlib.metadata import version
 from collections import namedtuple
 from markdown import Markdown
@@ -9,21 +11,47 @@ from markdown.extensions import Extension
 from markdown.preprocessors import Preprocessor
 from pydantic.version import VERSION as PYDANTIC_VERSION
 from pydantic import BaseModel
-from typing import Any, Type
+from typing import Any, Type, Union, Literal, Generic, TypeVar, get_origin, get_args
+
+T = TypeVar("T")
 
 if PYDANTIC_VERSION.startswith("1."):
     from pydantic.fields import Undefined as PydanticUndefined  # type: ignore
+    from pydantic.generics import GenericModel  # type: ignore
     _model_dump = lambda model, *args, **kwargs: model.dict(*args, **kwargs)
     _get_field_annotation = lambda field: field.type_
     _get_required = lambda field: field.required
+    _get_fields = lambda model: model.__fields__
 else:
     from pydantic_core import PydanticUndefined  # type: ignore
+    GenericModel = Generic
     _model_dump = lambda model, *args, **kwargs: model.model_dump(*args, **kwargs)
     _get_field_annotation = lambda field: field.annotation
     _get_required = lambda field: field.is_required()
+    _get_fields = lambda model: model.model_fields
 
 __version__ = version(__package__)
 ModelFieldInfo = namedtuple("ModelFieldInfo", "name type required default")
+
+
+def is_typing_union(obj: Any) -> bool:
+    """
+    Check if the given object is a typing.Union.
+
+    :param obj: Object to check.
+    :return: True if the object is a typing.Union, False otherwise.
+    """
+    return get_origin(obj) is Union
+
+
+def is_typing_literal(obj: Any) -> bool:
+    """
+    Check if the given object is a typing.Literal.
+
+    :param obj: Object to check.
+    :return: True if the object is a typing.Literal, False otherwise.
+    """
+    return get_origin(obj) is Literal
 
 
 def is_pydantic_model(obj: Type | None) -> bool:
@@ -38,6 +66,8 @@ def is_pydantic_model(obj: Type | None) -> bool:
     if isinstance(obj, (list, tuple)):
         return any(is_pydantic_model(o) for o in obj)
     if isinstance(obj, type) and issubclass(obj, BaseModel):
+        return True
+    if isinstance(obj, BaseModel):
         return True
     return False
 
@@ -86,36 +116,48 @@ def import_class(path: str):
 
 def extract_configuration(index, lines):
     """
-    Extract configuration from the lines.
+    Extract configuration from the lines starting from a given index.
+    The configuration must be indented by at least two spaces.
 
     :param index: Current index in the lines.
     :param lines: All lines of the document.
     :return: Configuration and new index.
     """
-    config = {}  # default configuration
+    config = {}
     json_string = ''
+    capture = False
+    braces_count = 0
 
-    # Define the regex pattern for checking the start of the string.
-    # It checks for a tab or 2-4 spaces.
-    tab_pattern = re.compile(r"^[ \t]{2,4}")
+    # Define the regex pattern to match at least 2 spaces of indentation.
+    indent_pattern = re.compile(r"^\s{2,}")
 
-    # Check for configuration in the next lines
-    while index + 1 < len(lines):
-        next_line = lines[index + 1]
+    for current_index, line in enumerate(lines[index:], start=index):
+        if indent_pattern.match(line):
+            stripped_line = line.strip()
 
-        # Check if line starts with the defined pattern
-        if not re.match(tab_pattern, next_line):
-            break  # end of configuration block
+            if '{' in stripped_line:
+                braces_count += stripped_line.count('{')
+                if not capture:
+                    capture = True
 
-        json_string += next_line.strip()  # Remove leading and trailing spaces
-        try:
-            config = json.loads(json_string)  # Try to parse JSON
-            index += 1  # Move to next line
-        except json.JSONDecodeError:
-            index += 1  # Continue if the JSON is not yet fully extracted
-            continue  # If the current JSON string is not valid, ignore it and continue
+            if capture:
+                json_string += stripped_line
 
-    return config, index
+            if '}' in stripped_line:
+                braces_count -= stripped_line.count('}')
+                if braces_count <= 0:
+                    break
+        elif capture:
+            # Break if indentation is less than 2 and we are already capturing.
+            break
+
+    try:
+        config = json.loads(json_string)
+    except json.JSONDecodeError as e:
+        print("Error parsing JSON:", e)
+
+    # Adjust the index to point to the line after the JSON block
+    return config, current_index + 1
 
 
 def get_default_string(default: Any):
@@ -129,10 +171,13 @@ def get_default_string(default: Any):
         return "..."
     elif default is not None and is_pydantic_model(default):
         return str(_model_dump(default))
+    elif isinstance(default, Enum):
+        return str(default.value)
     elif default is not None:
         return str(default)
     else:
-        return ""
+        return "''"
+
 
 def get_annotation_string(annotation: Any):
     """
@@ -141,29 +186,46 @@ def get_annotation_string(annotation: Any):
     :param annotation: Annotation to process.
     :return: String representation of the annotation.
     """
-    if annotation is None:
+    if annotation is None or isinstance(annotation, NoneType) or annotation is NoneType:
         return "None"
+    elif isinstance(annotation, UnionType) or is_typing_union(annotation):
+        return f"Union[{', '.join([get_annotation_string(a) for a in get_args(annotation)])}]"
+    elif is_typing_literal(annotation):
+        return f"Literal[{', '.join([repr(a) for a in get_args(annotation)])}]"
+    elif is_pydantic_model(annotation):
+        return submodel_link(annotation.__name__)
 
     return str(annotation.__name__)
 
 
-def get_field_info(model: Any, config: dict = {}, models: dict | None = None):
+def get_field_info(
+    model: Any,
+    config: dict | None = None,
+    models: dict | None = None
+) -> dict[str, list[ModelFieldInfo]]:
     """
     Get information about the fields of a model.
 
     :param model: The model to inspect.
     :param config: Configuration for the inspection.
     :param models: Already inspected models to avoid circular references.
-    :return: A dictionary with the model's field information.
+    :return: List of fields of the model.
     """
     if models is None:
         models = {}
+    if config is None:
+        config = {}
 
     fields: list[ModelFieldInfo] = []
     model_name = model.__name__
+
+    if model_name in config.get("exclude", {}) and config["exclude"][model_name] == "*":
+        # Skip models that are explicitly excluded
+        return {}
+
     models[model_name] = fields
 
-    for name, field in model.__fields__.items():
+    for name, field in _get_fields(model).items():
         if model_name in config.get("exclude", {}) and name in config["exclude"][model_name]:
             # Skip fields that are explicitly excluded
             continue
@@ -174,8 +236,11 @@ def get_field_info(model: Any, config: dict = {}, models: dict | None = None):
         required = str(_get_required(field))
 
         if is_pydantic_model(annotation):
-            annotation_str = submodel_link(annotation_str)
             get_field_info(annotation, config, models)
+        elif is_typing_union(annotation):
+            for arg in get_args(annotation):
+                if is_pydantic_model(arg):
+                    get_field_info(arg, config, models)
 
         fields.append(
             ModelFieldInfo(highlight_name(name), annotation_str, required, default)
@@ -199,7 +264,10 @@ def render_table(model_path: str, config: dict) -> str:
 
         tables = {
             cls: tabulate.tabulate(
-                [list(field) for field in fields],
+                [
+                    (field.name, field.type, field.required, field.default,)
+                    for field in fields
+                ],
                 headers=["Name", "Type", "Required", "Default"],
                 tablefmt="github"
             )
