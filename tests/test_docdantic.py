@@ -83,7 +83,7 @@ def test_extract_configuration():
     lines = ["!docdantic: tests.test_docdantic.DummyModel", "  {\"exclude\": {\"DummyModel\": [\"field\"]}}"]
     config, index = extract_configuration(0, lines)
     assert config == {"exclude": {"DummyModel": ["field"]}}
-    assert index == 1
+    assert index == 2
 
 class DummyModel(BaseModel):
     field: int = Field(default=1)
@@ -98,7 +98,7 @@ def test_process_line():
     lines = ["!docdantic: tests.test_docdantic.DummyModel", "  {\"exclude\": {\"DummyModel\": [\"field\"]}}"]
     processed_line, index = process_line(0, lines)
     assert all(item not in processed_line for item in ["**field**", "int", "False", "1"]) 
-    assert index == 1
+    assert index == 2
 
 # Test DocdanticPreprocessor
 def test_DocdanticPreprocessor():

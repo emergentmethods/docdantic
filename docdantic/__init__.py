@@ -176,7 +176,7 @@ def get_default_string(default: Any):
     elif default is not None:
         return str(default)
     else:
-        return "''"
+        return ""
 
 
 def get_annotation_string(annotation: Any):
