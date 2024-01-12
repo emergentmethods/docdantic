@@ -1,3 +1,10 @@
+## 0.3.1 (2024-01-12)
+
+### Fix
+
+- Fix default repr and tests
+- Fix table rendering, annotation strings, and config extraction
+
 ## 0.3.0 (2024-01-07)
 
 ### Feat
